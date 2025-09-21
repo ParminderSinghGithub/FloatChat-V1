@@ -179,16 +179,16 @@ def main():
         return
     
     # Create tabs
-    tab1, tab2, tab3 = st.tabs(["🗺️ Interactive Map", "📊 Profile Plots", "🤖 Chatbot Query"])
+    tab1, tab2, tab3 = st.tabs(["🤖 Chatbot Query", "📊 Profile Plots", "🗺️ Interactive Map"])
     
     with tab1:
-        show_interactive_map()
+        show_chatbot_interface()
     
     with tab2:
         show_profile_plots()
     
     with tab3:
-        show_chatbot_interface()
+        show_interactive_map()
 
 
 def show_interactive_map():
@@ -327,6 +327,10 @@ def show_chatbot_interface():
     """Show the chatbot interface tab."""
     st.markdown('<h2 class="section-header">🤖 Natural Language Query Interface</h2>', unsafe_allow_html=True)
     
+    # Initialize session state for example query execution
+    if 'execute_example_query' not in st.session_state:
+        st.session_state.execute_example_query = None
+    
     # Initialize chatbot
     with ArgoDatabase() as db:
         chatbot = ArgoChatbot(db)
@@ -337,15 +341,22 @@ def show_chatbot_interface():
         with col1:
             st.markdown("### 💬 Ask a Question")
             
+            # Set default value for query input based on example selection
+            default_query = st.session_state.execute_example_query if st.session_state.execute_example_query else ""
+            
             # Query input
             user_query = st.text_input(
                 "Enter your question about the ARGO float data:",
+                value=default_query,
                 placeholder="e.g., 'Show me floats near the equator' or 'Find high temperature measurements'",
-                key="chatbot_query"
+                key="chatbot_query_input"
             )
             
-            # Process query button
-            if st.button("🔍 Search", type="primary"):
+            # Auto-execute if example query was selected
+            should_execute = st.button("🔍 Search", type="primary") or st.session_state.execute_example_query is not None
+            
+            # Process query
+            if should_execute:
                 if user_query:
                     with st.spinner("Processing your query..."):
                         results, explanation, suggestion = chatbot.process_query(user_query)
@@ -354,6 +365,9 @@ def show_chatbot_interface():
                         st.session_state.chatbot_results = results
                         st.session_state.chatbot_explanation = explanation
                         st.session_state.chatbot_suggestion = suggestion
+                        
+                        # Clear the example query flag
+                        st.session_state.execute_example_query = None
                 else:
                     st.warning("Please enter a query.")
         
@@ -363,7 +377,8 @@ def show_chatbot_interface():
             example_queries = chatbot.suggest_queries()
             for i, example in enumerate(example_queries[:5]):
                 if st.button(f"💭 {example}", key=f"example_{i}"):
-                    st.session_state.chatbot_query = example
+                    # Set the example query to be executed
+                    st.session_state.execute_example_query = example
                     st.rerun()
             
             # Help button
