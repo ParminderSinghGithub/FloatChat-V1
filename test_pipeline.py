@@ -1,9 +1,3 @@
-"""
-Test script for the ARGO Float Data Pipeline
-
-This script tests all components of the pipeline to ensure they work correctly.
-"""
-
 import sys
 import traceback
 from pathlib import Path
@@ -65,16 +59,13 @@ def test_database():
             summary = db.get_float_summary()
             print(f"✅ Retrieved summary for {len(summary)} floats")
             
-            # Test date range query
-            date_range_data = db.get_profiles_by_date_range('2023-01-01', '2023-12-31')
-            print(f"✅ Date range query returned {len(date_range_data)} rows")
+            # Test depth range query
+            depth_range_data = db.get_measurements_by_depth_range(0, 100)
+            print(f"✅ Depth range query returned {len(depth_range_data)} rows")
             
-            # Test nearest float
-            nearest = db.get_nearest_float(0, 0)
-            if nearest:
-                print(f"✅ Found nearest float: {nearest['float_id']}")
-            else:
-                print("⚠️ No nearest float found")
+            # Test parameter query
+            temp_data = db.get_measurements_by_parameter('temp', 10, 30)
+            print(f"✅ Temperature parameter query returned {len(temp_data)} rows")
         
         return True
     except Exception as e:
@@ -140,7 +131,7 @@ def test_chatbot():
             test_queries = [
                 "Show me floats near the equator",
                 "Find high temperature measurements",
-                "Show salinity data from 2023"
+                "Show salinity data from the Pacific Ocean"
             ]
             
             for query in test_queries:

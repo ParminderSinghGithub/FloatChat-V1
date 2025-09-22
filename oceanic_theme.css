@@ -1,0 +1,450 @@
+/* Oceanic Theme for ARGO Float Data Pipeline */
+
+/* Import Google Fonts for oceanic feel */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* Root variables for light oceanic color palette */
+:root {
+    --ocean-deep: #2C5F7C;
+    --ocean-dark: #4A90A4;
+    --ocean-medium: #7BC3D4;
+    --ocean-light: #A8E6CF;
+    --ocean-surface: #E8F6F3;
+    --ocean-foam: #F0FDFA;
+    --ocean-wave: #88D8C0;
+    --coral-accent: #FF6B6B;
+    --sand-light: #F7F3E9;
+    --pearl-white: #FFFFFF;
+    --text-dark: #1E293B;
+    --text-medium: #475569;
+    --text-light: #64748B;
+    --sea-glass: rgba(123, 195, 212, 0.15);
+    --wave-gradient: linear-gradient(135deg, #A8E6CF 0%, #88D8C0 100%);
+    --ocean-gradient: linear-gradient(135deg, #F0FDFA 0%, #E8F6F3 50%, #D1FAE5 100%);
+    --surface-gradient: linear-gradient(135deg, #E8F6F3 0%, #A8E6CF 100%);
+    --card-gradient: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 253, 250, 0.8) 100%);
+}
+
+/* Main app container */
+.main .block-container {
+    background: var(--ocean-gradient);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+}
+
+/* Streamlit main content area */
+.stApp {
+    background: var(--ocean-gradient);
+    font-family: 'Inter', sans-serif;
+}
+
+/* Header styling */
+.main-header {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 3rem !important;
+    font-weight: 700 !important;
+    background: var(--surface-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center !important;
+    margin-bottom: 2rem !important;
+    text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    animation: wave 3s ease-in-out infinite;
+}
+
+@keyframes wave {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+/* Section headers */
+.section-header {
+    font-family: 'Poppins', sans-serif !important;
+    font-size: 1.8rem !important;
+    color: var(--ocean-surface) !important;
+    margin-top: 2rem !important;
+    margin-bottom: 1rem !important;
+    border-bottom: 2px solid var(--ocean-wave);
+    padding-bottom: 0.5rem;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* Sidebar styling */
+.css-1d391kg {
+    background: linear-gradient(180deg, var(--ocean-dark) 0%, var(--ocean-medium) 100%);
+    border-right: 3px solid var(--ocean-wave);
+}
+
+.sidebar .sidebar-content {
+    background: var(--ocean-dark);
+    color: var(--pearl-white);
+}
+
+/* Sidebar text */
+.css-1d391kg .markdown-text-container {
+    color: var(--pearl-white) !important;
+}
+
+/* Info boxes with oceanic styling */
+.info-box {
+    background: linear-gradient(135deg, var(--sea-glass), rgba(74, 144, 164, 0.2));
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--ocean-wave);
+    padding: 1.5rem !important;
+    border-radius: 15px !important;
+    margin: 1rem 0 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    color: var(--pearl-white);
+}
+
+.success-box {
+    background: linear-gradient(135deg, rgba(168, 230, 207, 0.2), rgba(136, 216, 192, 0.3));
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--ocean-foam);
+    padding: 1.5rem !important;
+    border-radius: 15px !important;
+    margin: 1rem 0 !important;
+    border-left: 4px solid var(--ocean-wave) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    color: var(--pearl-white);
+}
+
+.warning-box {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 193, 7, 0.2));
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--coral-accent);
+    padding: 1.5rem !important;
+    border-radius: 15px !important;
+    margin: 1rem 0 !important;
+    border-left: 4px solid var(--coral-accent) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+    color: var(--pearl-white);
+}
+
+/* Tab styling */
+.stTabs [data-baseweb="tab-list"] {
+    background: var(--ocean-dark);
+    border-radius: 15px;
+    padding: 0.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.stTabs [data-baseweb="tab"] {
+    background: transparent;
+    color: var(--ocean-surface);
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.stTabs [data-baseweb="tab"]:hover {
+    background: var(--ocean-medium);
+    color: var(--pearl-white);
+    transform: translateY(-2px);
+}
+
+.stTabs [aria-selected="true"] {
+    background: var(--surface-gradient) !important;
+    color: var(--ocean-deep) !important;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* Button styling */
+.stButton > button {
+    background: var(--surface-gradient);
+    color: var(--ocean-deep);
+    border: none;
+    border-radius: 25px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.stButton > button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    background: linear-gradient(90deg, #88D8C0 0%, #A8E6CF 100%);
+}
+
+.stButton > button:active {
+    transform: translateY(-1px);
+}
+
+/* Primary button */
+.stButton > button[kind="primary"] {
+    background: var(--wave-gradient);
+    color: var(--pearl-white);
+}
+
+/* Input fields */
+.stTextInput > div > div > input {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 2px solid var(--ocean-wave);
+    border-radius: 15px;
+    color: var(--pearl-white);
+    padding: 1rem;
+    font-family: 'Inter', sans-serif;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: var(--ocean-surface);
+    box-shadow: 0 0 20px rgba(123, 195, 212, 0.3);
+}
+
+/* Select boxes */
+.stSelectbox > div > div {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 2px solid var(--ocean-wave);
+    border-radius: 15px;
+}
+
+/* Metrics */
+.metric-container {
+    background: var(--sea-glass);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--ocean-wave);
+    border-radius: 15px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+/* DataFrames */
+.stDataFrame {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* Plotly charts container */
+.js-plotly-plot {
+    background: rgba(255, 255, 255, 0.05) !important;
+    backdrop-filter: blur(10px);
+    border-radius: 15px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+/* Checkbox styling */
+.stCheckbox > label {
+    color: var(--pearl-white);
+    font-weight: 500;
+}
+
+/* Spinner */
+.stSpinner > div {
+    border-top-color: var(--ocean-surface) !important;
+}
+
+/* Markdown text */
+.markdown-text-container {
+    color: var(--pearl-white);
+}
+
+/* Custom wave animation for decorative elements */
+.wave-decoration {
+    position: relative;
+    overflow: hidden;
+}
+
+.wave-decoration::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(123, 195, 212, 0.3), transparent);
+    animation: wave-sweep 3s infinite;
+}
+
+@keyframes wave-sweep {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+/* Floating elements effect */
+.floating {
+    animation: floating 6s ease-in-out infinite;
+}
+
+@keyframes floating {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Ripple effect for interactive elements */
+.ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.ripple::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(123, 195, 212, 0.5);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.ripple:hover::after {
+    width: 300px;
+    height: 300px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--ocean-dark);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--ocean-wave);
+    border-radius: 10px;
+    border: 2px solid var(--ocean-dark);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--ocean-surface);
+}
+
+/* Loading states */
+.loading-ocean {
+    background: var(--ocean-gradient);
+    position: relative;
+    overflow: hidden;
+}
+
+.loading-ocean::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, transparent 30%, rgba(123, 195, 212, 0.1) 50%, transparent 70%);
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Error states */
+.error-coral {
+    background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(255, 107, 107, 0.1));
+    border: 2px solid var(--coral-accent);
+    color: var(--pearl-white);
+}
+
+/* Success states */
+.success-wave {
+    background: linear-gradient(135deg, rgba(168, 230, 207, 0.2), rgba(136, 216, 192, 0.1));
+    border: 2px solid var(--ocean-wave);
+}
+
+/* Float ID selection styling */
+/* Sidebar Float ID Selector */
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] {
+    background-color: var(--float-id-bg) !important;
+    border: 1px solid var(--ocean-medium) !important;
+    color: var(--float-text) !important;
+    transition: all 0.2s ease !important;
+}
+
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"]:hover {
+    background-color: var(--float-id-hover) !important;
+    border-color: var(--ocean-light) !important;
+    transform: translateY(-1px) !important;
+}
+
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] span {
+    color: var(--float-text) !important;
+}
+
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] button {
+    color: var(--float-text) !important;
+    opacity: 0.7;
+}
+
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="tag"] button:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Selected items in dropdown */
+section[data-testid="stSidebar"] [role="listbox"] [aria-selected="true"] {
+    background-color: var(--float-selected) !important;
+    color: var(--float-text) !important;
+}
+
+/* Dropdown hover state */
+section[data-testid="stSidebar"] [role="listbox"] [role="option"]:hover {
+    background-color: var(--float-id-hover) !important;
+    color: var(--float-text) !important;
+}
+
+/* Main content Float ID buttons */
+[data-testid="stHorizontalBlock"] div[data-testid="column"] > div {
+    background-color: var(--float-id-bg) !important;
+    border-radius: 6px !important;
+    color: var(--ocean-foam) !important;
+    padding: 4px 12px !important;
+    margin: 4px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    border: 2px solid var(--ocean-deep) !important;
+}
+
+[data-testid="stHorizontalBlock"] div[data-testid="column"] > div:hover {
+    background-color: var(--float-id-hover) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 6px rgba(44, 95, 124, 0.2) !important;
+}
+
+[data-testid="stHorizontalBlock"] div[data-testid="column"] > div:active {
+    transform: translateY(0) !important;
+}
+
+/* Style for float ID close button (x) */
+[data-testid="stHorizontalBlock"] div[data-testid="column"] button {
+    background: transparent !important;
+    border: none !important;
+    color: var(--ocean-foam) !important;
+    opacity: 0.8;
+    padding: 2px 6px !important;
+    margin-left: 8px !important;
+    font-size: 16px !important;
+}
+
+[data-testid="stHorizontalBlock"] div[data-testid="column"] button:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 4px;
+}
+
+/* Make the float ID text white and clear */
+[data-testid="stHorizontalBlock"] div[data-testid="column"] p {
+    color: var(--ocean-foam) !important;
+    margin: 0 !important;
+    font-weight: 500 !important;
+}

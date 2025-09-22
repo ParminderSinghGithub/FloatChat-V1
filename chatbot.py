@@ -1,16 +1,3 @@
-"""
-Chatbot Module for ARGO Float Data
-
-This module provides a simple rule-based chatbot interface for querying
-ARGO float data using natural language-like queries.
-
-In the final SIH PoC, this will be extended with:
-- RAG (Retrieval-Augmented Generation) with vector database
-- Large Language Model (LLM) integration
-- Advanced NLP for complex queries
-- Context-aware conversation handling
-"""
-
 import re
 import pandas as pd
 from typing import Dict, List, Optional, Tuple, Any
@@ -58,15 +45,8 @@ class ArgoChatbot:
             'mediterranean': {'lat_range': (30, 45), 'lon_range': (-10, 40)}
         }
         
-        self.time_keywords = {
-            'january': '01', 'february': '02', 'march': '03', 'april': '04',
-            'may': '05', 'june': '06', 'july': '07', 'august': '08',
-            'september': '09', 'october': '10', 'november': '11', 'december': '12',
-            'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04',
-            'may': '05', 'jun': '06', 'jul': '07', 'aug': '08',
-            'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12',
-            'spring': '03-05', 'summer': '06-08', 'autumn': '09-11', 'fall': '09-11', 'winter': '12-02'
-        }
+        # Time keywords removed since we don't have time data in the new schema
+        self.time_keywords = {}
         
         self.comparison_keywords = {
             'high': 'high',
@@ -111,16 +91,8 @@ class ArgoChatbot:
             if region in query_lower:
                 parsed['regions'].append((region, coords))
         
-        # Extract time information
-        # Look for years
-        year_matches = re.findall(r'\b(20\d{2})\b', query)
-        if year_matches:
-            parsed['time_filters'].extend([f"year_{year}" for year in year_matches])
-        
-        # Look for months
-        for month_keyword, month_num in self.time_keywords.items():
-            if month_keyword in query_lower:
-                parsed['time_filters'].append(f"month_{month_num}")
+        # Time information extraction removed since we don't have time data
+        # Focus on spatial and parameter-based queries instead
         
         # Extract comparisons
         for keyword, comparison in self.comparison_keywords.items():
@@ -175,16 +147,7 @@ class ArgoChatbot:
                 df = df[df['float_id'].isin(parsed_query['float_ids'])]
                 explanation_parts.append(f"Filtered for floats: {', '.join(parsed_query['float_ids'])}")
             
-            # Apply time filters
-            if parsed_query['time_filters']:
-                for time_filter in parsed_query['time_filters']:
-                    if time_filter.startswith('year_'):
-                        year = time_filter.split('_')[1]
-                        # This would need to be implemented in the database query
-                        explanation_parts.append(f"Filtered for year {year}")
-                    elif time_filter.startswith('month_'):
-                        month = time_filter.split('_')[1]
-                        explanation_parts.append(f"Filtered for month {month}")
+            # Time filters removed since we don't have time data in the new schema
             
             # Apply region filters
             if parsed_query['regions']:
@@ -246,7 +209,7 @@ class ArgoChatbot:
         try:
             df = self.db.get_float_profile(float_id)
             if not df.empty and parameter in df.columns:
-                return df[['time', 'lat', 'lon', 'depth', parameter]].dropna()
+                return df[['lat', 'lon', 'depth', parameter]].dropna()
             return pd.DataFrame()
         except Exception as e:
             logger.error(f"Error getting detailed data: {e}")
@@ -254,22 +217,22 @@ class ArgoChatbot:
     
     def suggest_queries(self) -> List[str]:
         """
-        Suggest example queries for the user.
+        Suggest example queries for real ARGO float data.
         
         Returns:
             List of example query strings
         """
         return [
-            "Show me floats near the equator",
-            "Find high temperature measurements in 2023",
-            "Show salinity data from the Pacific Ocean",
+            "Show me all available floats",
+            "Find high temperature measurements near the equator",
+            "Show temperature data from tropical regions",
             "Find floats with deep measurements (>1000m)",
-            "Show me data from March 2023",
-            "Find floats in the North Atlantic",
-            "Show temperature profiles for float 1901234",
-            "Find low salinity measurements",
+            "Show me warm water measurements (>25°C)",
+            "Find floats in the Pacific Ocean region",
+            "Find biogeochemical measurements",
             "Show me data between 100-500 meters depth",
-            "Find floats in tropical regions"
+            "Find floats with salinity measurements",
+            "Show me surface temperature data"
         ]
     
     def process_query(self, query: str) -> Tuple[pd.DataFrame, str, str]:
@@ -317,14 +280,13 @@ class ArgoChatbot:
         <b>Supported Query Types:</b><br>
         • <b>Parameters:</b> temperature, salinity, depth, pressure<br>
         • <b>Regions:</b> equator, tropical, Pacific, Atlantic, Mediterranean, etc.<br>
-        • <b>Time:</b> years (2023), months (March), seasons (summer)<br>
         • <b>Comparisons:</b> high, low, warm, cold, deep, shallow<br>
         • <b>Float IDs:</b> 7-digit numbers (1901234)<br>
         • <b>Depth ranges:</b> "100-500m", "between 50 and 200 meters"<br><br>
         
         <b>Example Queries:</b><br>
         • "Show me floats near the equator"<br>
-        • "Find high temperature measurements in 2023"<br>
+        • "Find high temperature measurements"<br>
         • "Show salinity data from the Pacific Ocean"<br>
         • "Find floats with deep measurements (>1000m)"<br>
         • "Show temperature profiles for float 1901234"<br><br>
