@@ -6,14 +6,14 @@
 
 ## 🚀 Live Demo
 
-🌐 **Live App:** [Open FloatChat Demo](YOUR_LIVE_LINK_HERE)
+🌐 **Live App:** [Open FloatChat Demo](https://parmindersinghgithub-floatchat-v1-app-kufdku.streamlit.app/)
 
 ---
 
 ## 🎥 Demo Preview
 
 <p align="center">
-  <img src="assets/demo.gif" alt="FloatChat Demo" width="100%">
+  <img src="demo.gif" alt="FloatChat Demo" width="100%">
 </p>
 
 ---
