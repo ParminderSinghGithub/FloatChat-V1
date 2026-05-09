@@ -25,7 +25,7 @@ def test_data_ingestion():
         from data_ingestion import ArgoDataIngestion
         
         ingestion = ArgoDataIngestion()
-        df = ingestion.ingest_sample_data(max_files=2)
+        df = ingestion.ingest_sample_data()
         
         if df.empty:
             print("❌ No data generated")
@@ -47,7 +47,7 @@ def test_database():
         
         # Generate sample data
         ingestion = ArgoDataIngestion()
-        df = ingestion.ingest_sample_data(max_files=2)
+        df = ingestion.ingest_sample_data()
         
         # Test database operations
         with ArgoDatabase() as db:
@@ -82,7 +82,7 @@ def test_visualization():
         
         # Generate sample data
         ingestion = ArgoDataIngestion()
-        df = ingestion.ingest_sample_data(max_files=2)
+        df = ingestion.ingest_sample_data()
         
         # Test visualizations
         viz = ArgoVisualization()
@@ -120,7 +120,7 @@ def test_chatbot():
         
         # Generate sample data and database
         ingestion = ArgoDataIngestion()
-        df = ingestion.ingest_sample_data(max_files=2)
+        df = ingestion.ingest_sample_data()
         
         with ArgoDatabase() as db:
             db.insert_measurements(df)

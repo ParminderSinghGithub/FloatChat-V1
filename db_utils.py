@@ -7,6 +7,8 @@ import logging
 from datetime import datetime
 import time
 
+import config as data_config
+
 # Configure minimal logging - errors only
 logging.basicConfig(level=logging.ERROR)
 logger = logging.getLogger(__name__)
@@ -219,7 +221,12 @@ class ArgoDatabase:
         
         return clean_df, validation_report
     
-    def insert_measurements_chunked(self, df: pd.DataFrame, chunk_size: int = 100000, batch_size: int = 5000) -> int:
+    def insert_measurements_chunked(
+        self,
+        df: pd.DataFrame,
+        chunk_size: int = data_config.DB_INSERT_CHUNK_SIZE,
+        batch_size: int = data_config.DB_INSERT_BATCH_SIZE,
+    ) -> int:
         """
         CHUNKED VERSION: Insert measurements by processing large datasets in chunks.
         NO DATA LOSS - processes all data in manageable pieces.
@@ -279,7 +286,7 @@ class ArgoDatabase:
             # Only log validation issues if there are significant problems
             if validation_report.get('success_rate', 100) < 95:
                 print(f"  Validation: {validation_report['original_records']} -> {validation_report['final_records']} records")
-                for issue in validation_report['issues_found'][:3]:  # Limit output
+                for issue in validation_report['issues_found'][:data_config.VALIDATION_ISSUE_PREVIEW_LIMIT]:
                     print(f"    {issue}")
             
             if clean_df.empty:
@@ -355,10 +362,14 @@ class ArgoDatabase:
         Returns:
             Number of rows successfully inserted
         """
-        # Automatically use chunked processing for datasets > 50k records
-        if len(df) > 50000:
+        # Automatically use chunked processing for larger datasets
+        if len(df) > data_config.DB_INSERT_LARGE_DATASET_THRESHOLD:
             print(f"Large dataset detected ({len(df):,} records), using chunked processing")
-            return self.insert_measurements_chunked(df, chunk_size=100000, batch_size=batch_size)
+            return self.insert_measurements_chunked(
+                df,
+                chunk_size=data_config.DB_INSERT_CHUNK_SIZE,
+                batch_size=batch_size,
+            )
         else:
             return self._insert_single_chunk(df, batch_size)
     
@@ -676,18 +687,25 @@ def main():
         print("Testing chunked database operations...")
         
         # Create larger test dataset to demonstrate chunking
+        total_rows = data_config.TEST_DATASET_TOTAL_ROWS
+        float_rows = data_config.TEST_DATASET_FLOAT_ROWS
+        remaining_rows = total_rows - float_rows
         test_data = pd.DataFrame({
-            'float_id': ['1234567'] * 5000 + ['2345678'] * 5000,  # 10k records for testing
-            'lat': [45.0 + i*0.001 for i in range(10000)],
-            'lon': [-120.0 + i*0.001 for i in range(10000)],
-            'depth': [i*0.5 for i in range(10000)],
-            'temp': [15.5 - i*0.001 for i in range(10000)],
-            'sal': [35.0 + np.random.random(10000) * 0.5]
+            'float_id': ['1234567'] * float_rows + ['2345678'] * remaining_rows,
+            'lat': [45.0 + i * 0.001 for i in range(total_rows)],
+            'lon': [-120.0 + i * 0.001 for i in range(total_rows)],
+            'depth': [i * 0.5 for i in range(total_rows)],
+            'temp': [15.5 - i * 0.001 for i in range(total_rows)],
+            'sal': 35.0 + np.random.random(total_rows) * 0.5
         })
         
         with ArgoDatabase("test_chunked_argo.db") as db:
             print("Starting chunked insertion test...")
-            inserted = db.insert_measurements_chunked(test_data, chunk_size=3000, batch_size=1000)
+            inserted = db.insert_measurements_chunked(
+                test_data,
+                chunk_size=data_config.TEST_INSERT_CHUNK_SIZE,
+                batch_size=data_config.TEST_INSERT_BATCH_SIZE,
+            )
             print(f"Inserted {inserted} test records using chunked processing")
             
             # Test queries

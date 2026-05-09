@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
+import config as data_config
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -217,7 +219,12 @@ class ArgoDataIngestion:
         
         return nc_file.stem
 
-    def process_netcdf_file(self, nc_file: Path, chunk_size: int = 50000) -> pd.DataFrame:
+    def process_netcdf_file(
+        self,
+        nc_file: Path,
+        chunk_size: int = data_config.CHUNK_SIZE,
+        max_profiles_per_file: int = data_config.MAX_PROFILES_PER_FILE,
+    ) -> pd.DataFrame:
         """Process a single NetCDF file with chunked processing to prevent data loss."""
         try:
             float_id = self._extract_float_id(nc_file)
@@ -243,9 +250,9 @@ class ArgoDataIngestion:
                     return pd.DataFrame()
 
                 # Limit profiles per file but process all measurements within each profile
-                max_profiles = min(n_profiles, 10000)
+                profile_count = min(n_profiles, max_profiles_per_file)
 
-                for i in range(max_profiles):
+                for i in range(profile_count):
                     lat_val = self._safe_extract_scalar(ds, lat_var, i)
                     lon_val = self._safe_extract_scalar(ds, lon_var, i)
 
@@ -311,14 +318,14 @@ class ArgoDataIngestion:
         try:
             if 'N_PROF' in ds.sizes:
                 count = ds.sizes['N_PROF']
-                return min(count, 10000)  # Max 10k profiles per file
+                return min(count, data_config.MAX_PROFILES_PER_FILE)
             
             for var in [time_var, lat_var, lon_var]:
                 if var and var in ds.variables:
                     dim = self._get_variable_dimension(ds, var)
                     if dim and dim in ds.sizes:
                         count = ds.sizes[dim]
-                        return min(count, 10000)  # Safety limit
+                        return min(count, data_config.MAX_PROFILES_PER_FILE)
             
             return 1
         except:
@@ -333,10 +340,10 @@ class ArgoDataIngestion:
         padded[:len(array)] = array
         return padded
 
-    def ingest_all_data(self, chunk_size: int = 50000) -> pd.DataFrame:
+    def ingest_all_data(self, chunk_size: int = data_config.CHUNK_SIZE) -> pd.DataFrame:
         """Ingest all NetCDF files with chunked processing - no data loss."""
         print("Starting file discovery...")
-        netcdf_files = self.find_all_netcdf_files()
+        netcdf_files = sorted(self.find_all_netcdf_files(), key=str)
         if not netcdf_files:
             print("ERROR: No NetCDF files found. Check your data path.")
             return pd.DataFrame()
@@ -388,7 +395,7 @@ class ArgoDataIngestion:
             print(f"Total records: {len(combined_df):,}")
             print(f"Unique floats: {unique_floats}")
             print(f"Top floats by record count:")
-            for i, (float_id, count) in enumerate(float_counts.head(5).items()):
+            for i, (float_id, count) in enumerate(float_counts.head(data_config.TOP_FLOAT_DISPLAY_LIMIT).items()):
                 print(f"  {i+1}. Float {float_id}: {count:,} records")
             print(f"Temperature completeness: {temp_completeness:.1f}%")
             print(f"Salinity completeness: {sal_completeness:.1f}%")
@@ -401,6 +408,126 @@ class ArgoDataIngestion:
         else:
             print("ERROR: No valid data could be processed from any files.")
             return pd.DataFrame()
+
+    def get_diverse_sample_files(self, netcdf_files, max_files):
+        """
+        Select files with diverse float representation.
+        Groups files by float ID and selects up to MAX_FILES_PER_FLOAT per float.
+        Uses round-robin selection to maximize float diversity.
+        """
+        import re
+        from collections import defaultdict
+        
+        if not netcdf_files or max_files <= 0:
+            return []
+        
+        def extract_platform_id(filename):
+            """Extract 7-digit platform number from filename."""
+            match = re.search(r'(\d{7})', filename)
+            return match.group(1) if match else filename
+        
+        # Group files by platform/float ID
+        float_groups = defaultdict(list)
+        for f in netcdf_files:
+            platform_id = extract_platform_id(f.name)
+            float_groups[platform_id].append(f)
+        
+        # Round-robin selection from each float group
+        selected = []
+        float_list = list(float_groups.keys())
+        file_counts = {fid: 0 for fid in float_list}
+        
+        while len(selected) < max_files:
+            added_in_round = False
+            for platform_id in float_list:
+                if len(selected) >= max_files:
+                    break
+                # Take up to MAX_FILES_PER_FLOAT from each platform
+                if (file_counts[platform_id] < data_config.MAX_FILES_PER_FLOAT and 
+                    file_counts[platform_id] < len(float_groups[platform_id])):
+                    selected.append(float_groups[platform_id][file_counts[platform_id]])
+                    file_counts[platform_id] += 1
+                    added_in_round = True
+            
+            if not added_in_round:
+                break
+        
+        # Print diagnostics
+        floats_selected = sum(1 for count in file_counts.values() if count > 0)
+        files_per_float = [count for count in file_counts.values() if count > 0]
+        
+        print(f"Diverse sampling: {floats_selected} unique floats, {min(files_per_float)}-{max(files_per_float)} files per float")
+        
+        return selected
+
+    def ingest_sample_data(
+        self,
+        max_files: int = data_config.MAX_FILES,
+        chunk_size: int = data_config.CHUNK_SIZE,
+        max_profiles_per_file: int = data_config.MAX_PROFILES_PER_FILE,
+    ) -> pd.DataFrame:
+        """Ingest a small, Streamlit-friendly subset of the available NetCDF files."""
+        print("Starting sample file discovery...")
+        netcdf_files = sorted(self.find_all_netcdf_files(), key=str)
+        if not netcdf_files:
+            print("ERROR: No NetCDF files found. Check your data path.")
+            return pd.DataFrame()
+
+        # Use diverse sampling if enabled, otherwise use sequential
+        if data_config.DIVERSE_FLOAT_SAMPLING:
+            sample_files = self.get_diverse_sample_files(netcdf_files, max_files)
+        else:
+            sample_files = netcdf_files[:max(0, max_files)]
+        if not sample_files:
+            print("ERROR: Sample file selection returned no files.")
+            return pd.DataFrame()
+
+        print(f"Found {len(netcdf_files)} NetCDF files. Processing {len(sample_files)} sample files...")
+        all_data = []
+        successful_files = 0
+        failed_files = 0
+
+        for nc_file in sample_files:
+            try:
+                df = self.process_netcdf_file(
+                    nc_file,
+                    chunk_size=chunk_size,
+                    max_profiles_per_file=max_profiles_per_file,
+                )
+                if not df.empty:
+                    all_data.append(df)
+                    successful_files += 1
+                else:
+                    failed_files += 1
+            except Exception as e:
+                failed_files += 1
+                logger.error(f"Error processing sample file {nc_file.name}: {str(e)}")
+
+        print(f"Sample processing complete. Combining {len(all_data)} successful datasets...")
+
+        if all_data:
+            combined_df = pd.concat(all_data, ignore_index=True)
+            unique_floats = combined_df['float_id'].nunique()
+            temp_completeness = (combined_df['temp'].notna().sum() / len(combined_df)) * 100
+            sal_completeness = (combined_df['sal'].notna().sum() / len(combined_df)) * 100
+
+            print(f"\n{'='*60}")
+            print("ARGO DATA INGESTION COMPLETED - SAMPLE MODE")
+            print(f"{'='*60}")
+            print(f"Files processed: {successful_files}/{len(sample_files)}")
+            print(f"Total records: {len(combined_df):,}")
+            print(f"Unique floats: {unique_floats}")
+            print(f"Temperature completeness: {temp_completeness:.1f}%")
+            print(f"Salinity completeness: {sal_completeness:.1f}%")
+            print(f"Lat range: {combined_df['lat'].min():.2f} to {combined_df['lat'].max():.2f}")
+            print(f"Lon range: {combined_df['lon'].min():.2f} to {combined_df['lon'].max():.2f}")
+            print(f"Depth range: {combined_df['depth'].min():.1f} to {combined_df['depth'].max():.1f}m")
+            print(f"{'='*60}\n")
+
+            return combined_df
+
+        print("ERROR: No valid data could be processed from the sample files.")
+        return pd.DataFrame()
 
     def get_data_summary(self, df: pd.DataFrame) -> Dict:
         """Generate comprehensive data summary."""
@@ -445,15 +572,23 @@ def main():
     """Main execution with chunked processing."""
     try:
         ingestion = ArgoDataIngestion()
-        # Use chunked processing with configurable chunk size
-        df = ingestion.ingest_all_data(chunk_size=50000)
+        data_config.log_active_config()
+        use_full_ingest = os.getenv("ARGO_FULL_INGEST", "0") == "1"
+
+        if use_full_ingest:
+            # Use chunked processing with configurable chunk size
+            df = ingestion.ingest_all_data(chunk_size=data_config.CHUNK_SIZE)
+            output_file = "argo_ingested_data_chunked.csv"
+        else:
+            # Default to a small sample so local and Streamlit runs stay fast
+            df = ingestion.ingest_sample_data()
+            output_file = "argo_ingested_sample_data.csv"
         
         if df.empty:
             print("ERROR: No valid data was ingested.")
             return
         
         # Save to CSV
-        output_file = "argo_ingested_data_chunked.csv"
         df.to_csv(output_file, index=False)
         print(f"Data saved to: {output_file}")
         

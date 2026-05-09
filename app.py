@@ -11,6 +11,8 @@ import os
 from pathlib import Path
 import time
 
+import config as data_config
+
 # Import our custom modules
 from data_ingestion import ArgoDataIngestion
 from db_utils import ArgoDatabase
@@ -56,6 +58,17 @@ def show_chatbot_interface():
             
             # Set default value for query input based on example selection
             default_query = st.session_state.execute_example_query if st.session_state.execute_example_query else ""
+            # Make the chatbot input text more visible (sky-blue)
+            st.markdown(
+                """
+                <style>
+                .stTextInput>div>div>input, .stTextInput>div>div>textarea {
+                    color: #7BC3D4 !important;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
             
             # Oceanic query input
             user_query = st.text_input(
@@ -96,7 +109,7 @@ def show_chatbot_interface():
             # Example queries
             example_queries = chatbot.suggest_queries()
             oceanic_emojis = ["🌊", "🐠", "🐙", "🦈", "🐋"]
-            for i, example in enumerate(example_queries[:5]):
+            for i, example in enumerate(example_queries[:data_config.QUERY_EXAMPLE_LIMIT]):
                 emoji = oceanic_emojis[i % len(oceanic_emojis)]
                 if st.button(f"{emoji} {example}", key=f"example_{i}"):
                     # Set the example query to be executed
@@ -336,7 +349,7 @@ def get_thread_safe_db_instance():
                 db.connection.execute("PRAGMA optimize")
             
             _thread_locals.db_instance = db
-            print(f"Created thread-safe ArgoDatabase instance in thread {threading.get_ident()}")
+            logger.debug(f"Created thread-safe ArgoDatabase instance in thread {threading.get_ident()}")
             return db
         except Exception as e:
             print(f"Failed to create ArgoDatabase instance: {e}")
@@ -355,7 +368,6 @@ def get_db_context_ultra_fast():
         raise
 
 
-@st.cache_resource
 def get_optimized_database_connection():
     """Backward compatibility wrapper - uses thread-safe connection."""
     return get_thread_safe_db_instance()
@@ -377,24 +389,30 @@ def get_database_stats_ultra_fast():
                         total_measurements = int(result[0])
                     else:
                         # Ultra-fast sampling estimation
-                        cursor.execute("""
+                        cursor.execute(
+                            f"""
                             SELECT COUNT(*) FROM (
                                 SELECT 1 FROM argo_measurements 
-                                WHERE rowid % 1000 = 0 
-                                LIMIT 1000
+                                WHERE rowid % {data_config.DB_STATS_PRIMARY_ROWID_STRIDE} = 0 
+                                LIMIT {data_config.DB_STATS_PRIMARY_SAMPLE_LIMIT}
                             )
-                        """)
+                            """
+                        )
                         sample_count = cursor.fetchone()[0]
-                        total_measurements = sample_count * 1000
+                        total_measurements = sample_count * data_config.DB_STATS_PRIMARY_ROWID_STRIDE
                 except:
                     # Fallback to basic sampling
-                    cursor.execute("SELECT COUNT(*) FROM argo_measurements WHERE rowid % 100 = 0 LIMIT 10000")
+                    cursor.execute(
+                        f"SELECT COUNT(*) FROM argo_measurements WHERE rowid % {data_config.DB_STATS_FALLBACK_ROWID_STRIDE} = 0 LIMIT {data_config.DB_STATS_FALLBACK_SAMPLE_LIMIT}"
+                    )
                     sample_count = cursor.fetchone()[0]
-                    total_measurements = sample_count * 100
+                    total_measurements = sample_count * data_config.DB_STATS_FALLBACK_ROWID_STRIDE
                 
                 # Fast unique float count approximation
-                cursor.execute("SELECT COUNT(DISTINCT float_id) FROM argo_measurements WHERE rowid % 100 = 0")
-                unique_floats = cursor.fetchone()[0] * 100
+                cursor.execute(
+                    f"SELECT COUNT(DISTINCT float_id) FROM argo_measurements WHERE rowid % {data_config.DB_STATS_FALLBACK_ROWID_STRIDE} = 0"
+                )
+                unique_floats = cursor.fetchone()[0] * data_config.DB_STATS_FALLBACK_ROWID_STRIDE
                 
                 # Database size from file system (instant)
                 db_size_bytes = Path("argo_data.db").stat().st_size
@@ -419,10 +437,10 @@ def get_float_summary_ultra_fast():
         with get_db_context_ultra_fast() as db:
             if db and hasattr(db, 'connection') and db.connection:
                 # Ultra-efficient query with intelligent sampling
-                query = """
+                query = f"""
                 SELECT 
                     float_id,
-                    COUNT(*) * 50 as total_measurements,  -- Multiply by sampling factor
+                    COUNT(*) * {data_config.SUMMARY_ROWID_STRIDE} as total_measurements,
                     MIN(lat) as min_lat,
                     MAX(lat) as max_lat,
                     MIN(lon) as min_lon,
@@ -432,11 +450,11 @@ def get_float_summary_ultra_fast():
                     AVG(sal) as avg_sal
                 FROM (
                     SELECT * FROM argo_measurements 
-                    WHERE rowid % 50 = 0  -- Sample every 50th row for ultra speed
+                    WHERE rowid % {data_config.SUMMARY_ROWID_STRIDE} = 0
                 ) 
                 GROUP BY float_id
                 ORDER BY total_measurements DESC
-                LIMIT 100  -- Top 100 floats only
+                LIMIT {data_config.SUMMARY_FLOAT_LIMIT}
                 """
                 return pd.read_sql_query(query, db.connection)
         return pd.DataFrame()
@@ -445,13 +463,13 @@ def get_float_summary_ultra_fast():
         return pd.DataFrame()
 
 
-def get_sample_data_ultra_fast(limit=25000):  # Reduced from 50000 for speed
+def get_sample_data_ultra_fast(limit=data_config.DB_SAMPLE_LIMIT):
     """Ultra-fast sample data using your existing backend with thread safety."""
     try:
         with get_db_context_ultra_fast() as db:
             if db and hasattr(db, 'connection') and db.connection:
                 # Ultra-intelligent sampling for geographic distribution
-                query = """
+                query = f"""
                 WITH sampled_data AS (
                     SELECT 
                         float_id, lat, lon, depth, temp, sal,
@@ -463,15 +481,15 @@ def get_sample_data_ultra_fast(limit=25000):  # Reduced from 50000 for speed
                         ) as rn
                     FROM argo_measurements 
                     WHERE lat IS NOT NULL AND lon IS NOT NULL
-                    AND rowid % 20 = 0  -- Pre-sample for ultra speed
+                    AND rowid % {data_config.SAMPLE_DATA_ROWID_STRIDE} = 0
                 )
                 SELECT float_id, lat, lon, depth, temp, sal
                 FROM sampled_data 
-                WHERE rn <= 2  -- Max 2 points per grid cell
+                WHERE rn <= {data_config.SAMPLE_DATA_POINTS_PER_GRID_CELL}
                 ORDER BY RANDOM()
-                LIMIT ?
+                LIMIT {limit}
                 """
-                return pd.read_sql_query(query, db.connection, params=[limit])
+                return pd.read_sql_query(query, db.connection)
         return pd.DataFrame()
     except Exception as e:
         print(f"Error getting sample data: {e}")
@@ -925,15 +943,15 @@ def check_existing_database_ultra_fast():
     try:
         db_path = Path("argo_data.db")
         if not db_path.exists():
-            print("Database file does not exist")
+            logger.debug("Database file does not exist")
             return False
-            
-        db_size_mb = db_path.stat().st_size / (1024 * 1024)
-        print(f"Database file size: {db_size_mb:.1f} MB")
-        
-        if db_size_mb < 100:  # For your 13GB file, this should pass
-            print("Database file too small")
-            return False
+
+        try:
+            db_size_mb = db_path.stat().st_size / (1024 * 1024)
+            logger.debug(f"Database file size: {db_size_mb:.3f} MB")
+        except Exception:
+            # If we cannot stat the file for any reason, continue to schema checks
+            logger.debug("Could not determine database file size")
         
         # Use your existing ArgoDatabase class
         try:
@@ -942,20 +960,20 @@ def check_existing_database_ultra_fast():
                     cursor = db.connection.cursor()
                     cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='argo_measurements'")
                     if cursor.fetchone():
-                        print("Database table exists and appears valid")
+                        logger.debug("Database table exists and appears valid")
                         return True
                     else:
-                        print("Database table not found")
+                        logger.debug("Database table not found")
                         return False
                 else:
-                    print("Could not establish database connection")
+                    logger.debug("Could not establish database connection")
                     return False
         except Exception as e:
             print(f"Database context failed: {e}")
             return False
                 
     except Exception as e:
-        print(f"Database check failed: {e}")
+        logger.debug(f"Database check failed: {e}")
         return False
 
 
@@ -970,7 +988,7 @@ def load_data_from_database_ultra_fast():
             return None, None, None
         
         # Get smaller sample for ultra speed
-        sample_data = get_sample_data_ultra_fast(25000)
+        sample_data = get_sample_data_ultra_fast()
         if sample_data.empty:
             print("No sample data available")
             return None, None, None
@@ -1011,12 +1029,12 @@ def get_float_data_from_db_ultra_fast(float_id: str) -> pd.DataFrame:
                         print(f"Successfully loaded {len(df)} records for float {float_id}")
                         
                         # If too much data, intelligently sample it
-                        if len(df) > 15000:
+                        if len(df) > data_config.FLOAT_PROFILE_DOWNSAMPLE_THRESHOLD:
                             print(f"Sampling large dataset ({len(df)} records)")
                             # Sample by depth intervals for better representation
-                            df['depth_bin'] = pd.cut(df['depth'], bins=50, duplicates='drop')
+                            df['depth_bin'] = pd.cut(df['depth'], bins=data_config.FLOAT_PROFILE_BIN_COUNT, duplicates='drop')
                             sampled_df = df.groupby('depth_bin').apply(
-                                lambda x: x.sample(n=min(10, len(x))) if len(x) > 0 else x
+                                lambda x: x.sample(n=min(data_config.FLOAT_PROFILE_SAMPLE_PER_BIN, len(x))) if len(x) > 0 else x
                             ).reset_index(drop=True)
                             sampled_df = sampled_df.drop('depth_bin', axis=1)
                             print(f"Sampled down to {len(sampled_df)} records")
@@ -1047,14 +1065,6 @@ def auto_initialize_data_ultra_fast():
     """Ultra-fast data initialization with thread safety for 13GB database."""
     if not st.session_state.data_loaded:
         # Show immediate loading message
-        loading_placeholder = st.empty()
-        loading_placeholder.markdown("""
-        <div style="text-align: center; padding: 2rem;">
-            <h3>🚀 Ultra-Fast Loading from 13GB Database...</h3>
-            <p>Thread-safe optimized using your existing backend</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
         # Ultra-fast database check
         if check_existing_database_ultra_fast():
             # Load with ultra-fast functions
@@ -1066,17 +1076,9 @@ def auto_initialize_data_ultra_fast():
                 st.session_state.data_loaded = True
                 st.session_state.db_initialized = True
                 
-                # Clear the loading message once data is loaded
-                loading_placeholder.empty()
                 return True
-
-        loading_placeholder.error("❌ Could not load database efficiently")
-        # Clear error message after 2 seconds
-        time.sleep(2)
-        loading_placeholder.empty()
         return False
  
-@st.cache_resource
 def get_optimized_database_connection():
     """Backward compatibility - works with your existing ArgoDatabase class."""
     return get_thread_safe_db_instance()
@@ -1098,7 +1100,7 @@ def initialize_data():
     try:
         # First check if we already have data in the database
         if check_existing_database_ultra_fast():
-            print("Loading data from existing database...")
+            logger.debug("Loading data from existing database...")
             df, summary, region = load_data_from_database_ultra_fast()
             if df is not None and summary is not None and region is not None:
                 # Store in session state
@@ -1107,14 +1109,14 @@ def initialize_data():
                 st.session_state.region = region
                 st.session_state.data_loaded = True
                 st.session_state.db_initialized = True
-                print(f"Successfully loaded existing data: {len(summary)} floats from {region}")
+                logger.debug(f"Successfully loaded existing data: {len(summary)} floats from {region}")
                 return True
 
         # If no existing data, run the ingestion process
-        print("No existing database found. Running data ingestion...")
+        logger.debug("No existing database found. Running data ingestion...")
         # Initialize data ingestion from real ARGO dataset
         ingestion = ArgoDataIngestion()
-        df = ingestion.ingest_all_data()
+        df = ingestion.ingest_sample_data()
 
         if df.empty:
             st.error("No ARGO data could be loaded from the dataset.")
@@ -1147,13 +1149,13 @@ def initialize_data():
             return False
 
         # Store sample in session state instead of full data
-        sample_data = df.sample(n=min(50000, len(df)))
+        sample_data = df.sample(n=min(data_config.DATAFRAME_SAMPLE_LIMIT, len(df)))
         st.session_state.float_data = sample_data
         st.session_state.float_summary = summary
         st.session_state.data_loaded = True
         st.session_state.db_initialized = True
 
-        print(f"Successfully created new database with {len(df)} measurements from {len(summary)} floats")
+        logger.debug(f"Successfully created new database with {len(df)} measurements from {len(summary)} floats")
         return True
 
     except Exception as e:
@@ -1164,31 +1166,28 @@ def initialize_data():
 def auto_initialize_data_ultra_fast():
     """Ultra-fast data initialization for 13GB database."""
     if not st.session_state.data_loaded:
-        # Show immediate loading message
-        loading_placeholder = st.empty()
-        loading_placeholder.markdown("""
-        <div style="text-align: center; padding: 2rem;">
-            <h3>🚀 Quick Loading from 13GB Database...</h3>
-            <p>Optimized for large datasets - please wait a moment</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Quick database check
-        if check_existing_database_ultra_fast():
-            # Load with optimized functions
-            df, summary, region = load_data_from_database_ultra_fast()
-            if df is not None and summary is not None and region is not None:
-                st.session_state.float_data = df
-                st.session_state.float_summary = summary
-                st.session_state.region = region
-                st.session_state.data_loaded = True
-                st.session_state.db_initialized = True
-                
-                loading_placeholder.success(f"✅ Loaded {len(summary)} floats from {region} (Sample: {len(df):,} measurements)")
-                return True
-        
-        loading_placeholder.error("❌ Could not load database efficiently")
-        return False
+        # Use a minimal spinner; avoid printing messages to the page
+        with st.spinner("Initializing data..."):
+            try:
+                if check_existing_database_ultra_fast():
+                    df, summary, region = load_data_from_database_ultra_fast()
+                    if df is not None and summary is not None and region is not None:
+                        st.session_state.float_data = df
+                        st.session_state.float_summary = summary
+                        st.session_state.region = region
+                        st.session_state.data_loaded = True
+                        st.session_state.db_initialized = True
+                        return True
+
+                # Fall back to creating a small sample database on first run.
+                created = initialize_data()
+                if created:
+                    return True
+
+                return False
+            except Exception as e:
+                logger.debug(f"auto_initialize_data failed: {e}")
+                return False
 
 def get_database_stats_cached():
     """Backward compatibility - redirects to ultra-fast version."""
@@ -1205,6 +1204,9 @@ def get_float_data_from_db(float_id: str):
 
 def main():
     """Main application function."""
+    if not st.session_state.get("active_data_config_logged", False):
+        data_config.log_active_config()
+        st.session_state.active_data_config_logged = True
     
     # Auto-initialize data on first load
     auto_initialize_data_ultra_fast()
@@ -1372,6 +1374,12 @@ def show_interactive_map():
             float_info = st.session_state.float_summary[
                 st.session_state.float_summary['float_id'] == selected_float
             ].iloc[0]
+
+            max_depth = float_info.get('max_depth')
+            max_depth_display = f"{max_depth:.0f}m" if pd.notna(max_depth) else "N/A"
+
+            avg_temp = float_info.get('avg_temp')
+            avg_temp_display = f"{avg_temp:.1f}°C" if pd.notna(avg_temp) else "N/A"
             
             # Professional metrics using Streamlit components with full labels
             st.markdown("""
@@ -1401,12 +1409,12 @@ def show_interactive_map():
             
             st.metric(
                 label="🏊‍♀️ Maximum Depth",
-                value=f"{float_info['max_depth']:.0f}m"
+                value=max_depth_display
             )
             
             st.metric(
                 label="🌡️ Average Temperature",
-                value=f"{float_info['avg_temp']:.1f}°C"
+                value=avg_temp_display
             )
     
     # Add CSS to remove extra spacing
@@ -1488,14 +1496,7 @@ def get_float_data_from_db_fast(float_id: str) -> pd.DataFrame:
             count = cursor.fetchone()[0]
 
             # Determine sampling rate based on count
-            if count > 50000:
-                sample_rate = 20
-            elif count > 25000:
-                sample_rate = 10
-            elif count > 10000:
-                sample_rate = 5
-            else:
-                sample_rate = 1
+            sample_rate = data_config.get_float_profile_sample_rate(count)
 
             # Simple, efficient sampling query
             query = """
@@ -1713,7 +1714,7 @@ def show_chatbot_interface():
             
             example_queries = chatbot.suggest_queries()
             oceanic_emojis = ["🌊", "🐠", "🐙", "🦈", "🐋"]
-            for i, example in enumerate(example_queries[:5]):
+            for i, example in enumerate(example_queries[:data_config.QUERY_EXAMPLE_LIMIT]):
                 emoji = oceanic_emojis[i % len(oceanic_emojis)]
                 if st.button(f"{emoji} {example}", key=f"example_{i}"):
                     # Set the example query to be executed

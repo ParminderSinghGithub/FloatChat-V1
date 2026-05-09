@@ -766,7 +766,7 @@ def main():
     from data_ingestion import ArgoDataIngestion
     
     ingestion = ArgoDataIngestion()
-    df = ingestion.ingest_sample_data(max_files=2)
+    df = ingestion.ingest_sample_data()
     
     # Test visualizations
     viz = ArgoVisualization()
