@@ -89,8 +89,7 @@ project/
 ├── config.py               # Centralized ingestion config
 ├── oceanic_theme.css       # Custom UI styling
 ├── requirements.txt        # Dependencies
-├── assets/
-│   └── demo.gif            # Demo preview
+├── demo.gif            # Demo preview
 └── README.md
 ```
 
